@@ -16,7 +16,7 @@
 The **NSLogger Viewer** runs on macOS and replaces *Xcode*, *Android Studio* or *Eclipse* consoles. It provides powerful additions like display filtering, defining log domain and level, image and binary logging, message coloring, traces buffering, timing information, link with source code, etc.
 
 <p align="center">
-  <img src="https://github.com/MonsieurDart/NSLogger/raw/swiftiosclient/Screenshots/mainwindow.png" title="Desktop Viewer (main window)">
+  <img src="Screenshots/mainwindow.png" title="Desktop Viewer (main window)">
 </p>
 
 **NSLogger** feature summary:
@@ -42,6 +42,11 @@ Here is what it looks like in action:
 </p>
 
 
+And with macOS Mojave and later's dark mode:
+
+<p align="center">
+  <img src="Screenshots/mainwindow-dark.png" title="Desktop Viewer (main window)">
+</p>
 
 # Basic Usage
 
@@ -151,6 +156,21 @@ This will allow the traces to be received only by the computer of the user who c
 
 *This only work when NSLogger has been added to your project using CocoaPods*.
 
+## Set up logger options
+
+For example if you don't want to disable OS_ACTIVITY_MODE for your scheme because you need that logs. And you wanna have only your logs in NSLogger in Swift call init function:
+
+```Swift
+func LoggerInit() {
+    let pointer = LoggerGetDefaultLogger()
+    var options = LoggerGetOptions(pointer)
+    
+    options ^= UInt32(kLoggerOption_CaptureSystemConsole) // disable that option
+    
+    LoggerSetOptions(pointer, options)
+}
+```
+
 ## Manual Framework Install
 
 When using NSLogger without CocoaPods, add `LoggerClient.h`, `LoggerClient.m` and `LoggerCommon.h` (as well as add the `CFNetwork.framework` and `SystemConfiguration.framework` frameworks) to your iOS or Mac OS X application, then replace your *NSLog()* calls with *LogMessageCompat()* calls. We recommend using a macro, so you can turn off logs when building the distribution version of your application.
@@ -201,4 +221,4 @@ The *NSLogger* framework runs in its own thread in your application. It tries ha
 
 # Credits
 
-NSLogger is Copyright (c) 2010-2018 Florent Pillet, All Rights Reserved, All Wrongs Revenged. Released under the [New BSD Licence](http://opensource.org/licenses/bsd-license.php). NSLogger uses parts of [Brandon Walkin's BWToolkit](http://www.brandonwalkin.com/bwtoolkit/), for which source code is included with the NSLogger viewer application. The NSLogger icon is Copyright (c) [Louis Harboe](http://harboe.me/)
+NSLogger is Copyright (c) 2010-2018 Florent Pillet, All Rights Reserved, All Wrongs Revenged. Released under the [New BSD Licence](http://opensource.org/licenses/bsd-license.php). The NSLogger icon is Copyright (c) [Louis Harboe](http://harboe.me/)

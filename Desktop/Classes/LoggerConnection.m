@@ -67,11 +67,6 @@ char sConnectionAssociatedObjectKey = 1;
 	return self;
 }
 
-- (void)dealloc
-{
-	dispatch_release(_messageProcessingQueue);
-}
-
 - (BOOL)isNewRunOfClient:(LoggerConnection *)aConnection
 {
 	// Try to detect if a connection is a new run of an older, disconnected session
@@ -126,16 +121,16 @@ char sConnectionAssociatedObjectKey = 1;
 		if (addrSize == sizeof(struct sockaddr_in))
 		{
 			struct sockaddr_in addra, addrb;
-			[_clientAddress getBytes:&addra];
-			[aConnection.clientAddress getBytes:&addrb];
+			[_clientAddress getBytes:&addra length:addrSize];
+			[aConnection.clientAddress getBytes:&addrb length:MIN([aConnection.clientAddress length], sizeof(addrb))];
 			if (memcmp(&addra.sin_addr, &addrb.sin_addr, sizeof(addra.sin_addr)))
 				return NO;
 		}
 		else if (addrSize == sizeof(struct sockaddr_in6))
 		{
 			struct sockaddr_in6 addr6a, addr6b;
-			[_clientAddress getBytes:&addr6a];
-			[aConnection.clientAddress getBytes:&addr6b];
+			[_clientAddress getBytes:&addr6a length:addrSize];
+			[aConnection.clientAddress getBytes:&addr6b length:MIN([aConnection.clientAddress length], sizeof(addr6b))];
 			if (memcmp(&addr6a.sin6_addr, &addr6b.sin6_addr, sizeof(addr6a.sin6_addr)))
 				return NO;
 		}
@@ -205,7 +200,6 @@ char sConnectionAssociatedObjectKey = 1;
 {
 	// Clear the backlog of _messages, only keeping the top (client info) message
 	// This MUST be called on the _messageProcessingQueue
-	assert(dispatch_get_current_queue() == _messageProcessingQueue);
 	if (![_messages count])
 		return;
 
@@ -338,7 +332,16 @@ char sConnectionAssociatedObjectKey = 1;
 	if ((self = [super init]) != nil)
 	{
 		_clientName = [aDecoder decodeObjectForKey:@"_clientName"];
+		// When the code was converted to ARC, some of the keys have changed.
+		// In order to be backward compatible, we also need to check if the coder
+		// is using the old keys.
+		if (_clientName == nil)
+			_clientName = [aDecoder decodeObjectForKey:@"clientName"];
+
 		_clientVersion = [aDecoder decodeObjectForKey:@"_clientVersion"];
+		if (_clientVersion == nil)
+			_clientVersion = [aDecoder decodeObjectForKey:@"clientVersion"];
+
 		_clientOSName = [aDecoder decodeObjectForKey:@"clientOSName"];
 		_clientOSVersion = [aDecoder decodeObjectForKey:@"clientOSVersion"];
 		_clientDevice = [aDecoder decodeObjectForKey:@"clientDevice"];
@@ -346,12 +349,18 @@ char sConnectionAssociatedObjectKey = 1;
 		_parentIndexesStack = [aDecoder decodeObjectForKey:@"parentIndexes"];
 		_filenames = [aDecoder decodeObjectForKey:@"_filenames"];
 		if (_filenames == nil)
+			_filenames = [aDecoder decodeObjectForKey:@"filenames"];
+		if (_filenames == nil)
 			_filenames = [[NSMutableSet alloc] init];
 		_functionNames = [aDecoder decodeObjectForKey:@"_functionNames"];
+		if (_functionNames == nil)
+			_functionNames = [aDecoder decodeObjectForKey:@"functionNames"];
 		if (_functionNames == nil)
 			_functionNames = [[NSMutableSet alloc] init];
 		objc_setAssociatedObject(aDecoder, &sConnectionAssociatedObjectKey, self, OBJC_ASSOCIATION_ASSIGN);
 		_messages = [aDecoder decodeObjectForKey:@"_messages"];
+		if (_messages == nil)
+			_messages = [aDecoder decodeObjectForKey:@"messages"];
 		_reconnectionCount = [aDecoder decodeIntForKey:@"reconnectionCount"];
 		_restoredFromSave = YES;
 		

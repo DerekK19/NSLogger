@@ -90,9 +90,6 @@ static NSArray *sXcodeFileExtensions = nil;
 	[_filterSetsListController removeObserver:self forKeyPath:@"arrangedObjects"];
 	[_filterSetsListController removeObserver:self forKeyPath:@"selectedObjects"];
 	[_filterListController removeObserver:self forKeyPath:@"selectedObjects"];
-	dispatch_release(_messageFilteringQueue);
-	if (_lastTilingGroup != NULL)
-		dispatch_release(_lastTilingGroup);
 
     _logTable.delegate = nil;
     _logTable.dataSource = nil;
@@ -234,6 +231,8 @@ static NSArray *sXcodeFileExtensions = nil;
 				case LOGMSG_TYPE_MARK:
 					newHeight = [LoggerMarkerCell heightForCellWithMessage:msg threadColumnWidth:_threadColumnWidth maxSize:maxCellSize showFunctionNames:_showFunctionNames];
 					break;
+				default:
+					break;
 			}
 			if (newHeight != cachedHeight)
 				[updatedMessages addObject:msg];
@@ -271,7 +270,6 @@ static NSArray *sXcodeFileExtensions = nil;
 			// by clearing the context, all further tasks on this group will cancel their work
 			// wait until they all went through cancellation before removing the group
 			dispatch_group_wait(leaveGroup, 0);
-			dispatch_release(leaveGroup);
 		});
 	}
 	_lastTilingGroup = NULL;
@@ -477,8 +475,7 @@ static NSArray *sXcodeFileExtensions = nil;
 																					   type:NSContainsPredicateOperatorType
 																					options:NSCaseInsensitivePredicateOption];
 		
-		[andPredicates addObject:[NSCompoundPredicate orPredicateWithSubpredicates:
-								  [NSArray arrayWithObjects:messagePredicate, functionPredicate, nil]]];
+		[andPredicates addObject:[NSCompoundPredicate orPredicateWithSubpredicates:@[messagePredicate, functionPredicate]]];
 	}
 	if ([andPredicates count])
 	{
@@ -489,7 +486,7 @@ static NSArray *sXcodeFileExtensions = nil;
 	if (p == nil)
 		p = [NSPredicate predicateWithValue:YES];
 	else
-		p = [NSCompoundPredicate orPredicateWithSubpredicates:[NSArray arrayWithObjects:[self alwaysVisibleEntriesPredicate], p, nil]];
+		p = [NSCompoundPredicate orPredicateWithSubpredicates:@[[self alwaysVisibleEntriesPredicate], p]];
 	self.filterPredicate = p;
 }
 
@@ -1084,7 +1081,6 @@ void runSystemCommand(NSString *cmd)
 		if (_lastTilingGroup != NULL)
 		{
 			dispatch_set_context(_lastTilingGroup, NULL);
-			dispatch_release(_lastTilingGroup);
 			_lastTilingGroup = NULL;
 		}
 		
@@ -1231,7 +1227,7 @@ didReceiveMessages:(NSArray *)theMessages
 {
 	if (tableView == _logTable && row >= 0 && row < [_displayedMessages count])
 	{
-		LoggerMessage *msg = _displayedMessages[row];
+		LoggerMessage *msg = _displayedMessages[(NSUInteger) row];
 		switch (msg.type)
 		{
 			case LOGMSG_TYPE_LOG:
@@ -1340,7 +1336,7 @@ didReceiveMessages:(NSArray *)theMessages
 	row:(NSInteger)rowIndex
 {
 	if (rowIndex >= 0 && rowIndex < [_displayedMessages count])
-		return _displayedMessages[rowIndex];
+		return _displayedMessages[(NSUInteger) rowIndex];
 	return nil;
 }
 
@@ -1403,7 +1399,7 @@ didReceiveMessages:(NSArray *)theMessages
 	{
 		// Only add those filters which don't exist yet
 		NSArray *filterSets = [_filterSetsListController arrangedObjects];
-		NSMutableDictionary *filterSet = filterSets[row];
+		NSMutableDictionary *filterSet = filterSets[(NSUInteger) row];
 		NSMutableArray *existingFilters = [filterSet mutableArrayValueForKey:@"filters"];
 		for (NSMutableDictionary *filter in newFilters)
 		{
@@ -1538,40 +1534,33 @@ didReceiveMessages:(NSArray *)theMessages
 	NSPredicate *predicate = dict[@"predicate"];
 	[_filterEditor setObjectValue:[predicate copy]];
 
-	[NSApp beginSheet:_filterEditorWindow
-	   modalForWindow:[self window]
-		modalDelegate:self
-	   didEndSelector:@selector(filterEditSheetDidEnd:returnCode:contextInfo:)
-		  contextInfo:(__bridge void *)dict];
-}
+    [self.window beginSheet:_filterEditorWindow
+          completionHandler:^(NSModalResponse returnCode) {
+              if (returnCode) {
+                  BOOL exists = [[self.filterListController content] containsObject:dict];
 
-- (void)filterEditSheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo
-{
-	NSDictionary *contextDict = (__bridge_transfer NSDictionary *)contextInfo;
-	if (returnCode)
-	{
-		NSMutableDictionary *dict = [contextDict mutableCopy];
-		BOOL exists = [[_filterListController content] containsObject:(__bridge id)contextInfo];
-		
-		NSPredicate *predicate = [_filterEditor predicate];
-		if (predicate == nil)
-			predicate = [NSCompoundPredicate orPredicateWithSubpredicates:[NSArray array]];
-		dict[@"predicate"] = predicate;
-		
-		NSString *title = [[_filterName stringValue] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-		if ([title length])
-			dict[@"title"] = title;
-		
-		if (exists)
-			[self undoableModifyFilter:dict];
-		else
-			[self undoableCreateFilter:dict];
-		
-		[_filterListController setSelectedObjects:@[dict]];
+                  NSPredicate *predicate = [self.filterEditor predicate];
+                  if (predicate == nil)
+                      predicate = [NSCompoundPredicate orPredicateWithSubpredicates:[NSArray array]];
 
-		[(LoggerAppDelegate *) [NSApp delegate] saveFiltersDefinition];
-	}
-	[_filterEditorWindow orderOut:self];
+                  NSMutableDictionary *newDict = [dict mutableCopy];
+                  newDict[@"predicate"] = predicate;
+
+                  NSString *title = [[self.filterName stringValue] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
+                  if ([title length])
+                      newDict[@"title"] = title;
+
+                  if (exists)
+                      [self undoableModifyFilter:newDict];
+                  else
+                      [self undoableCreateFilter:newDict];
+
+                  [self.filterListController setSelectedObjects:@[newDict]];
+
+                  [(LoggerAppDelegate *)NSApp.delegate saveFiltersDefinition];
+              }
+              [self.filterEditorWindow orderOut:self];
+          }];
 }
 
 - (IBAction)deleteSelectedFilters:(id)sender
@@ -1584,10 +1573,10 @@ didReceiveMessages:(NSArray *)theMessages
 	NSDictionary *filterSet = [[_filterSetsListController selectedObjects] lastObject];
 	assert(filterSet != nil);
 	NSDictionary *dict = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-						  [(LoggerAppDelegate *)[NSApp delegate] nextUniqueFilterIdentifier:[filterSet objectForKey:@"filters"]], @"uid",
-						  NSLocalizedString(@"New filter", @""), @"title",
-						  [NSCompoundPredicate andPredicateWithSubpredicates:[NSArray array]], @"predicate",
-						  nil];
+		[(LoggerAppDelegate *) NSApp.delegate nextUniqueFilterIdentifier:[filterSet objectForKey:@"filters"]], @"uid",
+			NSLocalizedString(@"New filter", @""), @"title",
+		[NSCompoundPredicate andPredicateWithSubpredicates:NSArray.array], @"predicate",
+			nil];
 	[self openFilterEditSheet:dict];
 	[_filterEditor addRow:self];
 }
@@ -1642,9 +1631,9 @@ didReceiveMessages:(NSArray *)theMessages
 	}
 	
 	NSDictionary *dict = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-						  [(LoggerAppDelegate *)[NSApp delegate] nextUniqueFilterIdentifier:[filterSet objectForKey:@"filters"]], @"uid",
-						  newFilterTitle, @"title",
-						  [NSCompoundPredicate andPredicateWithSubpredicates:predicates], @"predicate",
+		[(LoggerAppDelegate *) NSApp.delegate nextUniqueFilterIdentifier:[filterSet objectForKey:@"filters"]], @"uid",
+		newFilterTitle, @"title",
+		[NSCompoundPredicate andPredicateWithSubpredicates:predicates], @"predicate",
 						  nil];
 	[self openFilterEditSheet:dict];
 }
@@ -1752,7 +1741,7 @@ didReceiveMessages:(NSArray *)theMessages
 			}
 			dispatch_async(dispatch_get_main_queue(), ^{
 				[[self document] updateChangeCount:NSChangeDone];
-				[self refreshAllMessages:@[mark, beforeMessage]];
+                [self refreshAllMessages:[NSArray arrayWithObjects: mark, beforeMessage, nil]]; // warning: don't convert to @[] as beforeMessage may be nil
 			});
 		});
 	});
@@ -1766,12 +1755,13 @@ didReceiveMessages:(NSArray *)theMessages
 												  dateStyle:NSDateFormatterShortStyle
 												  timeStyle:NSDateFormatterMediumStyle]];
 	[_markTitleField setStringValue:s];
-	
-	[NSApp beginSheet:_markTitleWindow
-	   modalForWindow:[self window]
-		modalDelegate:self
-	   didEndSelector:@selector(addMarkSheetDidEnd:returnCode:contextInfo:)
-		  contextInfo:(__bridge_retained void *)aMessage];
+
+    [self.window beginSheet:_markTitleWindow
+          completionHandler:^(NSModalResponse returnCode) {
+              if (returnCode)
+                  [self addMarkWithTitleString:[self.markTitleField stringValue] beforeMessage:aMessage];
+              [self.markTitleWindow orderOut:self];
+          }];
 }
 
 - (IBAction)addMark:(id)sender
@@ -1824,14 +1814,6 @@ didReceiveMessages:(NSArray *)theMessages
 - (IBAction)validateAddMark:(id)sender
 {
 	[NSApp endSheet:_markTitleWindow returnCode:1];
-}
-
-- (void)addMarkSheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo
-{
-	LoggerMessage *message = (__bridge_transfer LoggerMessage *)contextInfo;
-	if (returnCode)
-		[self addMarkWithTitleString:[_markTitleField stringValue] beforeMessage:message];
-	[_markTitleWindow orderOut:self];
 }
 
 // -----------------------------------------------------------------------------

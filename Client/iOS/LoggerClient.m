@@ -1,7 +1,7 @@
 /*
  * LoggerClient.m
  *
- * version 1.9.0 25-FEB-2018
+ * version 1.9.7 09-JAN-2019
  *
  * Main implementation of the NSLogger client side code
  * Part of NSLogger (client side)
@@ -940,10 +940,9 @@ static void LoggerLogToConsole(CFDataRef data)
 
 	char buf[32];
 	struct tm t;
-	gmtime_r(&timestamp.tv_sec, &t);
+	localtime_r(&timestamp.tv_sec, &t);
 	strftime(buf, sizeof(buf)-1, "%T", &t);
-	CFStringRef ts = CFStringCreateWithBytesNoCopy(
-                                                   NULL,
+	CFStringRef ts = CFStringCreateWithBytesNoCopy(NULL,
                                                    (const UInt8 *)buf,
                                                    (CFIndex)strlen(buf),
                                                    kCFStringEncodingASCII,
