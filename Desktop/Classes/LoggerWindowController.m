@@ -1040,9 +1040,9 @@ void runSystemCommand(NSString *cmd)
 	NSArray *filteredMessages = [messages filteredArrayUsingPredicate:aFilter];
 	if ([filteredMessages count])
 	{
-		[self tileLogTableMessages:filteredMessages withSize:tableFrameSize forceUpdate:NO group:NULL];
 		LoggerConnection *theConnection = _attachedConnection;
 		dispatch_async(dispatch_get_main_queue(), ^{
+			[self tileLogTableMessages:filteredMessages withSize:tableFrameSize forceUpdate:NO group:NULL];
 			if (self.attachedConnection == theConnection)
 			{
 				[self appendMessagesToTable:filteredMessages];
@@ -1092,14 +1092,14 @@ void runSystemCommand(NSString *cmd)
 	{
 		_attachedConnection = aConnection;
 		_attachedConnection.attachedToWindow = YES;
-		//dispatch_async(dispatch_get_main_queue(), ^{
-			_initialRefreshDone = NO;
+		_initialRefreshDone = NO;
+		dispatch_async(dispatch_get_main_queue(), ^{
 			[self updateClientInfo];
 			if (!_clientAppSettingsRestored)
 				[self restoreClientApplicationSettings];
 			[self rebuildRunsSubmenu];
 			[self refreshAllMessages:nil];
-		//});
+		});
 	}
 }
 
@@ -1726,22 +1726,20 @@ didReceiveMessages:(NSArray *)theMessages
 		// then we serialize all operations modifying the messages list in the connection's
 		// message processing queue
 		dispatch_async(self.attachedConnection.messageProcessingQueue, ^{
-			NSRange range;
 			@synchronized(self.attachedConnection.messages)
 			{
-				range.location = [self.attachedConnection.messages count];
-				range.length = 1;
+				NSUInteger location = [self.attachedConnection.messages count];
 				if (beforeMessage != nil)
 				{
 					NSUInteger pos = [self.attachedConnection.messages indexOfObjectIdenticalTo:beforeMessage];
 					if (pos != NSNotFound)
-						range.location = pos;
+						location = pos;
 				}
-				[self.attachedConnection.messages insertObject:mark atIndex:range.location];
+				[self.attachedConnection.messages insertObject:mark atIndex:location];
 			}
 			dispatch_async(dispatch_get_main_queue(), ^{
 				[[self document] updateChangeCount:NSChangeDone];
-                [self refreshAllMessages:[NSArray arrayWithObjects: mark, beforeMessage, nil]]; // warning: don't convert to @[] as beforeMessage may be nil
+				[self refreshAllMessages:beforeMessage == nil ? @[mark] : @[mark, beforeMessage]];
 			});
 		});
 	});
