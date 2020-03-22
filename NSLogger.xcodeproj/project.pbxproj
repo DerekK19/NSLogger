@@ -21,6 +21,7 @@
 		123F1BCC1F7E994C008F260C /* NSLoggerSwift.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NSLoggerSwift.h; path = Client/iOS/NSLoggerSwift.h; sourceTree = SOURCE_ROOT; };
 		3D0EE4BC1EC1241100D0FA63 /* NSLoggerSwift.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NSLoggerSwift.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		3D0EE4DC1EC1255A00D0FA63 /* NSLogger.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NSLogger.swift; path = Client/iOS/NSLogger.swift; sourceTree = SOURCE_ROOT; };
+		65801AF824281BA200AC542F /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 		DAAD0F961C4BE27B0042313D /* NSLogger.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NSLogger.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		DAAD0F9B1C4BE27B0042313D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DAAD0FA91C4BE55F0042313D /* LoggerClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = LoggerClient.h; path = Client/iOS/LoggerClient.h; sourceTree = SOURCE_ROOT; };
@@ -56,6 +57,7 @@
 		DAAD0F8C1C4BE27B0042313D = {
 			isa = PBXGroup;
 			children = (
+				65801AF824281BA200AC542F /* Package.swift */,
 				DAAD0F9B1C4BE27B0042313D /* Info.plist */,
 				DAAD0F981C4BE27B0042313D /* NSLogger */,
 				DAAD0F971C4BE27B0042313D /* Products */,
@@ -162,6 +164,7 @@
 					DAAD0F951C4BE27B0042313D = {
 						CreatedOnToolsVersion = 7.2;
 						DevelopmentTeam = 8R58U9EQLP;
+						LastSwiftMigration = 1120;
 					};
 				};
 			};
@@ -359,16 +362,25 @@
 		DAAD0F9F1C4BE27B0042313D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEFINES_MODULE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.florentpillet.NSLogger;
 				PRODUCT_NAME = NSLogger;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
 		DAAD0FA01C4BE27B0042313D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEFINES_MODULE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.florentpillet.NSLogger;
 				PRODUCT_NAME = NSLogger;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
